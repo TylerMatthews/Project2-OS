@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void lru();
 void fifo();
@@ -23,7 +24,9 @@ int main(int argc, char *argv[], int argv[]) { //requires <tracefile> <nframes> 
 	int TraceEvents = 0;
 	int tdr = 0; //total disk reads
 	int tdw = 0; //total disk writes
+	char action; //action records either R for read or W for write in the trace
 
+	//DEBUG MODE
 	FILE *file;
 	file = fopen (filename, "r");
 	if (file) {
