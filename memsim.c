@@ -10,20 +10,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
 #include "memsim.h"
 
 //It as assumed all pages are 4096 Bytes
 
-
 //First in First out
+
 void fifo(int numFrames, char* traceFile, int debug)
 {
 	unsigned address1;	//Holds the address from the file
 	char readwrite;		//Holds whether it is a read or write from the file
 
-	static int pageTableSize = 1048567;	//LA/Offset = 2^20 table entries
-
+	//static int pageTableSize = 1048567;	//LA/Offset = 2^20 table entries
+	static int pageTableSize = 888888;
 	unsigned pageNum;	
 
 	struct pageTableEntry pageTable[pageTableSize];		//Creates the page table
@@ -36,8 +35,8 @@ void fifo(int numFrames, char* traceFile, int debug)
 	int nextOpenCache = 0; //Next Open Cache
 
 	//Initializations
-	initPageTable(pageTable, pageTableSize);
-	initCache(cache, numFrames);
+	initPageTable(struct pageTableEntry pageTable[pageTableSize], pageTableSize);
+	initCache(struct pageTableEntry cache[numFrames], numFrames);
 	
 	FILE* file;
 	file = fopen(traceFile, "r");
@@ -48,11 +47,11 @@ void fifo(int numFrames, char* traceFile, int debug)
 		{
 			pageNum = address1 / (16 * 16 * 16);	//Gets page num
 
-			//Sets the valid bit
-			if(pageTable[pageNum].valid == 0)
+			//Sets the isValid bit
+			if(pageTable[pageNum].isValid == 0)
 			{
-				pageTable[pageNum].vpn = pageNum;
-				pageTable[pageNum].valid = 1;
+				pageTable[pageNum].virtualPN = pageNum;
+				pageTable[pageNum].isValid = 1;
 			}
 			//is the frame loaded into cache?
 			foundInCache = isCached(cache, numFrames, pageNum, debug);
@@ -61,36 +60,36 @@ void fifo(int numFrames, char* traceFile, int debug)
 			{
 				if(readwrite == 'W')
 				{
-					cache[foundInCache].dirty = 1;
+					cache[foundInCache].isDirty = 1;
 				}
 			}
 			
-			else if(FrontOfCache == -1)
+			else if(frontOfCache == -1)
 			{
 				if(debug)
 				{
 					printf("Filled in first entry of cache.\n");
 				}
-				FrontOfCache = 0;
+				frontOfCache = 0;
 				nextOpenCache = 1;
-				cache[FrontOfCache].vpn = pageNum;
-				pageTable[pageNum].present = 1;
+				cache[frontOfCache].virtualPN = pageNum;
+				pageTable[pageNum].isPresent = 1;
 				numReads++;
 				if(readwrite == 'W')
 				{
-					cache[FrontOfCache].dirty = 1;
+					cache[frontOfCache].isDirty = 1;
 				}			
 			}
 			//If Cache is full
-			else if(FrontOfCache == nextOpenCache)
+			else if(frontOfCache == nextOpenCache)
 			{
 				if(debug)
 				{
 					printf("Cache is full.\n");
 				}
-				if(cache[FrontOfCache].dirty == 1)
+				if(cache[frontOfCache].isDirty == 1)
 				{
-					pageTable[cache[FrontOfCache].vpn].present = 0;
+					pageTable[cache[frontOfCache].virtualPN].isPresent = 0;
 					if(debug)
 					{
 						printf("Write to disk.\n");
@@ -102,19 +101,19 @@ void fifo(int numFrames, char* traceFile, int debug)
 					printf("Read from disk.\n");
 				}
 				numReads++;
-				pageTable[pageNum].present = 1;
+				pageTable[pageNum].isPresent = 1;
 				//Remove front of cache, Front of cache is moved right
-				cache[FrontOfCache] = pageTable[pageNum];
+				cache[frontOfCache] = pageTable[pageNum];
 				if(readwrite == 'W')
 				{
-					cache[FrontOfCache].dirty = 1;
+					cache[frontOfCache].isDirty = 1;
 				}
 				else
 				{
-					cache[FrontOfCache].dirty = 0;
+					cache[frontOfCache].isDirty = 0;
 				}
-				FrontOfCache = (FrontOfCache + 1) % numFrames;
-				nextOpenCache = FrontOfCache;
+				frontOfCache = (frontOfCache + 1) % numFrames;
+				nextOpenCache = frontOfCache;
 			}
 			//The cache has not yet been filled up
 			else
@@ -123,16 +122,16 @@ void fifo(int numFrames, char* traceFile, int debug)
 				{
 					printf("Slot %d in array is filled.\n", nextOpenCache);
 				}
-				cache[nextOpenCache].vpn = pageNum;
+				cache[nextOpenCache].virtualPN = pageNum;
 				if(debug)
 				{
 					printf("Read from disk.\n");
 				}
 				numReads++;
-				pageTable[pageNum].present = 1;
+				pageTable[pageNum].isPresent = 1;
 				if(readwrite == 'W')
 				{
-					cache[nextOpenCache].dirty = 1;
+					cache[nextOpenCache].isDirty = 1;
 				}
 				nextOpenCache = (nextOpenCache + 1) % numFrames;
 			}
@@ -140,7 +139,7 @@ void fifo(int numFrames, char* traceFile, int debug)
 			foundInCache = -1;
 			if(debug)
 			{
-				cacheDisplay(cache, numFrames);
+				displayCached(cache, numFrames);
 			}
 		}
 		fclose(file);
@@ -174,12 +173,12 @@ void lru(int numFrames, char* traceFile, int debug)
 
 	
 	//initially empty
-	int FrontOfCache = -1;	//Front spot in array
+	int frontOfCache = -1;	//Front spot in array
 	int nextOpenCache = 0; //next available spot in array
 
 	//Initializations
-	initPageTable(pageTable, pageTableSize);
-	initCache(cache, numFrames);
+	initPageTable(&pageTable[pageTableSize], pageTableSize);
+	initCache(&cache[numFrames], numFrames);
 	
 	FILE* file;
 	file = fopen(traceFile, "r");
@@ -190,65 +189,65 @@ void lru(int numFrames, char* traceFile, int debug)
 		{
 			pageNum = address1 / (16 * 16 * 16);	//Gets the page number. Offset is 12 bits, hence the 3 16s
 
-			//Sets the valid bit
-			if(pageTable[pageNum].valid == 0)
+			//Sets the isValid bit
+			if(pageTable[pageNum].isValid == 0)
 			{
-				pageTable[pageNum].vpn = pageNum;
-				pageTable[pageNum].valid = 1;
+				pageTable[pageNum].virtualPN = pageNum;
+				pageTable[pageNum].isValid = 1;
 			}
 			//Checks to see if the frame has already been loaded in cache
 			foundInCache = isCached(cache, numFrames, pageNum, debug);
 			//Page is already in cache
 			if(foundInCache >= 0)
 			{
-				cache[foundInCache].added = now;
+				cache[foundInCache].isAdded = now;
 				now++;
 				if(readwrite == 'W')
 				{
-					cache[foundInCache].dirty = 1;
+					cache[foundInCache].isDirty = 1;
 				}
 			}
 			//If the Cache is Empty
-			else if(FrontOfCache == -1)
+			else if(frontOfCache == -1)
 			{
 				if(debug)
 				{
 					printf("Filled in first entry of cache.\n");
 				}
-				FrontOfCache = 0;
+				frontOfCache = 0;
 				nextOpenCache = 1;
-				cache[FrontOfCache].vpn = pageNum;
-				cache[FrontOfCache].added = now;
+				cache[frontOfCache].virtualPN = pageNum;
+				cache[frontOfCache].isAdded = now;
 				now++;
-				pageTable[pageNum].present = 1;
+				pageTable[pageNum].isPresent = 1;
 				numReads++;
 				if(readwrite == 'W')
 				{
-					cache[FrontOfCache].dirty = 1;
+					cache[frontOfCache].isDirty = 1;
 				}			
 			}
 			//If the cache is full
-			else if(FrontOfCache == nextOpenCache)
+			else if(frontOfCache == nextOpenCache)
 			{
 				if(debug)
 				{
 					printf("Cache is full.\n");
 				}
-				leastRecentlyUsed = cache[0].added;
+				leastRecentlyUsed = cache[0].isAdded;
 				leastRecentlyUsedCache = 0;
 				//Increment through cache, find Least Recently Used
 				//Least recent Used page is replaced
 				for(i = 1; i < numFrames; i++)
 				{
-					if(cache[i].added < leastRecentlyUsed)
+					if(cache[i].isAdded < leastRecentlyUsed)
 					{
-						leastRecentlyUsed = cache[i].added;
+						leastRecentlyUsed = cache[i].isAdded;
 						leastRecentlyUsedCache = i;
 					}
 				}
-				if(cache[leastRecentlyUsedCache].dirty == 1)
+				if(cache[leastRecentlyUsedCache].isDirty == 1)
 				{
-					pageTable[cache[leastRecentlyUsedCache].vpn].present = 0;
+					pageTable[cache[leastRecentlyUsedCache].virtualPN].isPresent = 0;
 					if(debug)
 					{
 						printf("Write to disk.\n");
@@ -260,17 +259,17 @@ void lru(int numFrames, char* traceFile, int debug)
 					printf("Read from disk.\n");
 				}
 				numReads++;
-				pageTable[pageNum].present = 1;
+				pageTable[pageNum].isPresent = 1;
 				cache[leastRecentlyUsedCache] = pageTable[pageNum];
-				cache[leastRecentlyUsedCache].added = now;
+				cache[leastRecentlyUsedCache].isAdded = now;
 				now++;
 				if(readwrite == 'W')
 				{
-					cache[leastRecentlyUsedCache].dirty = 1;
+					cache[leastRecentlyUsedCache].isDirty = 1;
 				}
 				else
 				{
-					cache[leastRecentlyUsedCache].dirty = 0;
+					cache[leastRecentlyUsedCache].isDirty = 0;
 				}
 			}
 			//If the cache is not full yet
@@ -280,18 +279,18 @@ void lru(int numFrames, char* traceFile, int debug)
 				{
 					printf("Slot %d in array is filled.\n", nextOpenCache);
 				}
-				cache[nextOpenCache].vpn = pageNum;
-				cache[nextOpenCache].added = now;
+				cache[nextOpenCache].virtualPN = pageNum;
+				cache[nextOpenCache].isAdded = now;
 				now++;
 				if(debug)
 				{
 					printf("Read from disk.\n");
 				}
 				numReads++;
-				pageTable[pageNum].present = 1;
+				pageTable[pageNum].isPresent = 1;
 				if(readwrite == 'W')
 				{
-					cache[nextOpenCache].dirty = 1;
+					cache[nextOpenCache].isDirty = 1;
 				}
 				nextOpenCache = (nextOpenCache + 1) % numFrames;
 			}
@@ -299,7 +298,7 @@ void lru(int numFrames, char* traceFile, int debug)
 			foundInCache = -1;
 			if(debug)
 			{
-				cacheDisplay(cache, numFrames);
+				displayCached(cache, numFrames);
 			}
 		}
 		fclose(file);
@@ -311,7 +310,7 @@ void lru(int numFrames, char* traceFile, int debug)
 	printf("The number of events in the trace is: %d\n", numTraces);
 }
 
-
+//void vms(int numFrames, char* traceFile, int debug)
 //Main, takes in arguement in the form of "memsim <tracefile> <nframes> <lru|fifo|vms> <debug|quiet>"
 int main(int argc, char *argv[])
 {
@@ -321,20 +320,21 @@ int main(int argc, char *argv[])
 	char *mode;
 	int debug = 0;
 
-	algorithm = argv[3];
-	mode = argv[4];
 	traceFile = argv[1];
 	numFrames = atoi(argv[2]);
+	algorithm = argv[3];
+	mode = argv[4];
+	
 
 	if(strcmp(mode, "debug") == 0)
 		debug = 1;
 	
 	if(strcmp(algorithm, "lru") == 0)
 		lru(numFrames, traceFile, debug);
-	else if(strcmp(algorithm, "fifo") == 0)
+	if(strcmp(algorithm, "fifo") == 0)
 		fifo(numFrames, traceFile, debug);
-	else if(strcmp(algorithm, "vms") == 0)
-		vms(numFrames, traceFile, debug);
+	//else if(strcmp(algorithm, "vms") == 0)
+	//	vms(numFrames, traceFile, debug);
 	
 	return 0;
 }

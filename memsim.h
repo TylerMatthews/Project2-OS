@@ -13,7 +13,7 @@ int numReads = 0;
 int numWrites = 0;
 int numHits = 0;
 
-struct PageTableEntry
+struct pageTableEntry
 {
 	int isPresent;	//Is it in memory?	
     int isValid;	
@@ -21,9 +21,8 @@ struct PageTableEntry
 	int isAdded;	//lru, to see when added
 	int isDirty;	
 };
-
 //Initalize a page table
-void initPageTable(struct PageTableEntry pageTable[], int pageTableSize)
+void initPageTable(struct pageTableEntry pageTable[], int pageTableSize)
 {
 	int i;
 	for(i = 0; i < pageTableSize; i++)
@@ -32,31 +31,30 @@ void initPageTable(struct PageTableEntry pageTable[], int pageTableSize)
 		pageTable[i].isDirty = 0;
 		pageTable[i].isValid = 0;
 		pageTable[i].isPresent = -1;
+		pageTable[i].isAdded = 0;
 	}
 }
 
 //Initializes the cache
-void initCache(struct PageTableEntry cache[], int numFrames)
+void initCache(struct pageTableEntry cache[], int numFrames)
 {
 	int i;
 	for(i = 0; i < numFrames; i++)
 	{
 		cache[i].virtualPN = -1;
-		cache[i].reference = 1;
 		cache[i].isAdded = -1;
-		cache[i].distance = -1;
 	}
 }
 
 //Returns the location in cache unless it is not in cache.
-int isCached(struct PageTableEntry cache[], int numFrames, unsigned pageNumber, int debug)
+int isCached(struct pageTableEntry cache[], int numFrames, unsigned pageNumber, int debug)
 {
 	int i;
 	for(i = 0; i < numFrames; i++)
 	{
 		if(cache[i].virtualPN == pageNumber)
 		{
-			hitCount++;
+			numHits++;
 			if(debug)
 			{
 				printf("Found in cache.\n");
@@ -68,7 +66,7 @@ int isCached(struct PageTableEntry cache[], int numFrames, unsigned pageNumber, 
 }
 
 //Prints the Cache
-void displayCached(struct PageTableEntry cache[], int numFrames)
+void displayCached(struct pageTableEntry cache[], int numFrames)
 {
 	int i;
 	printf("Cache: ");
