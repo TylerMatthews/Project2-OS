@@ -37,6 +37,14 @@ struct LRUFrame
 	unsigned int num2;       
 };
 
+struct FIFOFrame
+{
+	unsigned int num1;
+	char isValid;  //VALID BIT
+	char isDirty; //DIRTY BIT
+	unsigned int num2;
+};
+
 typedef struct queueStart
 {
     struct queue *start;
@@ -47,10 +55,12 @@ typedef struct queueStart
 
 void PrintResults(void);
 void SaveReference(unsigned int num2, char rw);
+void SaveReferenceFIFO(unsigned int num2, char rw);
 void initializeLRU(void);
 void initializeVMS(void);
+void initializeFIFO(void);
 void LRU(unsigned int addr, char rw);
 void VMS(unsigned int addr, char rw);
+void FIFO(unsigned int addr, char rw);
 int PutAtQHead(queueStart_t *QueueHead, queue_t *Qelement);
-int GetQueueLength(queueStart_t *QueueHead);
 unsigned int GetPageNum(unsigned int addr);
